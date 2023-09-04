@@ -14,19 +14,29 @@ class TreapNode {
         TreapNode* right;
         TreapNode* parent;
         T value;
+        int quantity;
         float r;
 
-    public:
-        TreapNode(T value_) {
+    private:
+        void init(T value_, int quantity_) {
             left = NULL;
             right = NULL;
             parent = NULL;
             value = value_;
+            quantity = quantity_;
             r = gen_random_float();
         }
 
+    public:
+
+        TreapNode(T value_) {
+            init(value_, 1);
+        }
+        TreapNode(T value_, int quantity_) {
+            init(value_, quantity_);
+        }
         void print() {
-            cout << "(" << value << ", " << r << ")" << endl;
+            cout << "(" << value << ", " << r << ", x" << quantity << ")" << endl;
         }
 
 };
@@ -49,28 +59,38 @@ class Treap {
         }
 
         void insert(T value) {
-            TreapNode<T>* new_node = new TreapNode<T>(value);
+            insert(value, 1);
+        }
+
+        void insert(T value, int quantity) {
+            TreapNode<T>* new_node;
             if (!root) {
-                root = new_node;
+                root = new TreapNode<T>(value, quantity);
+                return;
             } else {
                 TreapNode<T>* current_node = root;
                 while (true) {
-                    if (new_node->value < current_node->value) {
+                    if (value < current_node->value) {
                         if (current_node->left) {
                             current_node = current_node->left;
                         } else {
+                            new_node = new TreapNode<T>(value, quantity);
                             current_node->left = new_node;
                             new_node->parent = current_node;
                             break;
                         }
-                    } else {
+                    } else if (value > current_node->value) {
                         if (current_node->right) {
                             current_node = current_node->right;
                         } else {
+                            new_node = new TreapNode<T>(value, quantity);
                             current_node->right = new_node;
                             new_node->parent = current_node;
                             break;
                         }
+                    } else {
+                        current_node->quantity += quantity;
+                        return;
                     }
                 }
             }
@@ -103,6 +123,32 @@ class Treap {
                 new_node->parent = grandparent;
             }
         }
+
+        bool contains(T value) {
+            return count(value);
+        }
+
+        int count(T value) {
+            TreapNode<T>* current_node = root;
+            while (current_node) {
+                if (value < current_node->value) {
+                    current_node = current_node->left;
+                } else if (value > current_node->value) {
+                    current_node = current_node->right;
+                } else {
+                    return current_node->quantity;
+                }
+            }
+            return 0;
+        }
+
+        bool verify() {
+            if (root) {
+                return treap_verify_helper(root);
+            } else {
+                return true;
+            }
+        }
 };
 
 template <typename T>
@@ -113,22 +159,28 @@ void treap_print_helper(TreapNode<T>* node, int depth) {
     if (node->right) treap_print_helper(node->right, depth + 1);
 }
 
+template <typename T>
+bool treap_verify_helper(TreapNode<T>* node) {
+    if (node->left) {
+        if (node->left->parent != node) return false;
+        if (node->left->value >= node->value) return false;
+        if (node->left->r > node->r) return false;
+        if (!treap_verify_helper(node->left)) return false;
+    }
+    if (node->right) {
+        if (node->right->parent != node) return false;
+        if (node->right->value <= node->value) return false;
+        if (node->right->r > node->r) return false;
+        if (!treap_verify_helper(node->right)) return false;
+    }
+    return true;
+}
+
 int main () {
     srand(time(NULL));
     // srand(1);
 
     Treap<float> treap;
     treap.print();
-
-    for (int i = 0; i < 100; i++) {
-        float v = gen_random_float();
-        cout << "------" << endl;
-        cout << "Adding " << v << " !" << endl;
-        treap.insert(v);
-        // treap.print();
-    }
-
-    treap.print();
-
 
 }
