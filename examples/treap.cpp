@@ -15,7 +15,7 @@ class TreapNode {
         TreapNode* parent;
         T value;
         int quantity;
-        float r;
+        float priority;
 
     private:
         void init(T value_, int quantity_) {
@@ -24,7 +24,7 @@ class TreapNode {
             parent = NULL;
             value = value_;
             quantity = quantity_;
-            r = gen_random_float();
+            priority = gen_random_float();
         }
 
     public:
@@ -35,8 +35,12 @@ class TreapNode {
         TreapNode(T value_, int quantity_) {
             init(value_, quantity_);
         }
+        ~TreapNode() {
+            delete left;
+            delete right;
+        }
         void print() {
-            cout << "(" << value << ", " << r << ", x" << quantity << ")" << endl;
+            cout << "(" << value << ", " << priority << ", x" << quantity << ")" << endl;
         }
 
 };
@@ -45,9 +49,105 @@ template <typename T>
 class Treap {
     TreapNode<T>* root;
 
+    private:
+        TreapNode<T>* find_node(T value) {
+            TreapNode<T>* current_node = root;
+            while (current_node) {
+                if (value < current_node->value) {
+                    current_node = current_node->left;
+                } else if (value > current_node->value) {
+                    current_node = current_node->right;
+                } else {
+                    return current_node;
+                }
+            }
+            return NULL;
+        }
+
+        void remove_node_simple_case(TreapNode<T>* node) {
+            if (!node->left && !node->right) {
+                if (node == root) {
+                    root = NULL;
+                } else {
+                    if (node->parent->left == node) {
+                        node->parent->left = NULL;
+                    } else {
+                        node->parent->right = NULL;
+                    }
+                }
+            } else if (!node->left) {
+                if (node == root) {
+                    root = node->right;
+                    node->right->parent = NULL;
+                } else {
+                    node->right->parent = node->parent;
+                    if (node->parent->left == node) {
+                        node->parent->left = node->right;
+                    } else {
+                        node->parent->right = node->right;
+                    }
+                }
+                node->right = NULL;
+            } else if (!node->right) {
+                if (node == root) {
+                    root = node->left;
+                    node->left->parent = NULL;
+                } else {
+                    node->left->parent = node->parent;
+                    if (node->parent->left == node) {
+                        node->parent->left = node->left;
+                    } else {
+                        node->parent->right = node->left;
+                    }
+                }
+                node->left = NULL;
+            } else {
+                throw "Not a simple case!";
+            }
+            delete node;
+        }
+
+        void rotate(TreapNode<T>* node) {
+            // Rotates the node up, a left/right rotation depending on relation with parent.
+            if (!node->parent) {
+                throw "Can't rotate node because it has no parent.";
+            }
+            if (node->priority < node->parent->priority) {
+                throw "Can't rotate node because it has a lower priority than parent.";
+            }
+            TreapNode<T>* grandparent = node->parent->parent;
+            if (!grandparent) {
+                root = node;
+            } else {
+                if (node->value < grandparent->value) {
+                    grandparent->left = node;
+                } else {
+                    grandparent->right = node;
+                }
+            }
+
+            if (node->value < node->parent->value) {
+                // Left child.
+                node->parent->left = node->right;
+                if (node->right) node->right->parent = node->parent;
+                node->right = node->parent;
+            } else {
+                // Right child.
+                node->parent->right = node->left;
+                if (node->left) node->left->parent = node->parent;
+                node->left = node->parent;
+            }
+
+            node->parent->parent = node;
+            node->parent = grandparent;
+        }
+
     public:
         Treap() {
             root = NULL;
+        }
+        ~Treap() {
+            delete root;
         }
 
         void print() {
@@ -94,33 +194,8 @@ class Treap {
                     }
                 }
             }
-            while (new_node->parent && new_node->r > new_node->parent->r) {
-
-                TreapNode<T>* grandparent = new_node->parent->parent;
-                if (!grandparent) {
-                    root = new_node;
-                } else {
-                    if (new_node->value < grandparent->value) {
-                        grandparent->left = new_node;
-                    } else {
-                        grandparent->right = new_node;
-                    }
-                }
-
-                if (new_node->value < new_node->parent->value) {
-                    // Left child.
-                    new_node->parent->left = new_node->right;
-                    if (new_node->right) new_node->right->parent = new_node->parent;
-                    new_node->right = new_node->parent;
-                } else {
-                    // Right child.
-                    new_node->parent->right = new_node->left;
-                    if (new_node->left) new_node->left->parent = new_node->parent;
-                    new_node->left = new_node->parent;
-                }
-
-                new_node->parent->parent = new_node;
-                new_node->parent = grandparent;
+            while (new_node->parent && new_node->priority > new_node->parent->priority) {
+                rotate(new_node);
             }
         }
 
@@ -129,17 +204,12 @@ class Treap {
         }
 
         int count(T value) {
-            TreapNode<T>* current_node = root;
-            while (current_node) {
-                if (value < current_node->value) {
-                    current_node = current_node->left;
-                } else if (value > current_node->value) {
-                    current_node = current_node->right;
-                } else {
-                    return current_node->quantity;
-                }
+            TreapNode<T>* node = find_node(value);
+            if (node) {
+                return node->quantity;
+            } else {
+                return 0;
             }
-            return 0;
         }
 
         bool verify() {
@@ -149,6 +219,100 @@ class Treap {
                 return true;
             }
         }
+
+        bool remove(T value) {
+            return remove(value, 1);
+        }
+
+        bool remove(T value, int quantity) {
+            TreapNode<T>* node = find_node(value);
+            if (!node) return false;
+            if (node->quantity < quantity) {
+                // Ambiguous behavior, here we'll return false.
+                return false;
+            } else if (node->quantity > quantity) {
+                node->quantity -= quantity;
+                return true;
+            }
+
+            if (!node->left || !node->right) {
+                remove_node_simple_case(node);
+                return true;
+            } else {
+
+                // Find successor.
+                TreapNode<T>* successor = node->right;
+                while (successor->left) {
+                    successor = successor->left;
+                }
+
+                // Swap node and successor.
+                TreapNode<T>* temp;
+
+                temp = successor->parent;
+                if (node == root) {
+                    root = successor;
+                    successor->parent = NULL;
+                } else {
+                    if (node->parent->left == node) {
+                        node->parent->left = successor;
+                    } else {
+                        node->parent->right = successor;
+                    }
+                    successor->parent = node->parent;
+                }
+
+                successor->left = node->left;
+                node->left->parent = successor;
+
+                if (node->right == successor) {
+                    temp = successor->right;
+                    successor->right = node;
+                    node->parent = successor;
+                } else {
+                    node->parent = temp;
+                    temp->left = node;  // Successor was a left child in this case.
+                    temp = successor->right;
+                    successor->right = node->right;
+                    node->right->parent = successor;
+                }
+                
+                node->left = NULL;
+                node->right = temp;
+                if (node->right) node->right->parent = node;
+                
+                // Remove original node.
+                remove_node_simple_case(node);
+
+                // Rotate treap until valid.
+                node = successor;
+                float node_priority = node->priority;
+                float left_priority, right_priority;
+                while (true) {
+                    if (node->left) {
+                        left_priority = node->left->priority;
+                    } else {
+                        left_priority = -1;
+                    }
+                    if (node->right) {
+                        right_priority = node->right->priority;
+                    } else {
+                        right_priority = -1;
+                    }
+
+                    if (node_priority >= left_priority && node_priority >= right_priority) {
+                        break;
+                    } else if (left_priority > node_priority && left_priority > right_priority) {
+                        rotate(node->left);
+                    } else {
+                        rotate(node->right);
+                    }
+
+                }
+
+            }
+        }
+
 };
 
 template <typename T>
@@ -164,13 +328,13 @@ bool treap_verify_helper(TreapNode<T>* node) {
     if (node->left) {
         if (node->left->parent != node) return false;
         if (node->left->value >= node->value) return false;
-        if (node->left->r > node->r) return false;
+        if (node->left->priority > node->priority) return false;
         if (!treap_verify_helper(node->left)) return false;
     }
     if (node->right) {
-        if (node->right->parent != node) return false;
+        if (node->right->parent != node) return false; 
         if (node->right->value <= node->value) return false;
-        if (node->right->r > node->r) return false;
+        if (node->right->priority > node->priority) return false;
         if (!treap_verify_helper(node->right)) return false;
     }
     return true;
@@ -178,9 +342,6 @@ bool treap_verify_helper(TreapNode<T>* node) {
 
 int main () {
     srand(time(NULL));
-    // srand(1);
-
     Treap<float> treap;
     treap.print();
-
 }
