@@ -1,8 +1,15 @@
-TOP_WORKSPACE_RELATIVE_PATH="$(dirname "${BASH_SOURCE[0]}")/workspace"
-TOP_WORKSPACE_ABSOLUTE_PATH=$(cd "${TOP_WORKSPACE_RELATIVE_PATH}" && pwd)
-LOCAL_WORKSPACE_ABSOLUTE_PATH="${TOP_WORKSPACE_ABSOLUTE_PATH}/${1}"
-mkdir -p "${LOCAL_WORKSPACE_ABSOLUTE_PATH}"
-cp "${TOP_WORKSPACE_ABSOLUTE_PATH}/../base.cpp" "${LOCAL_WORKSPACE_ABSOLUTE_PATH}/sol.cpp"
-touch "${LOCAL_WORKSPACE_ABSOLUTE_PATH}/input.txt"
-touch "${LOCAL_WORKSPACE_ABSOLUTE_PATH}/output.txt"
-touch "${LOCAL_WORKSPACE_ABSOLUTE_PATH}/desired.txt"
+#!/bin/bash
+
+set -e -u -o pipefail
+
+top_dir_abs="$(cd $(dirname ${BASH_SOURCE[0]}) && pwd)"
+problem_group_dir="${top_dir_abs}/workspace/${1}"
+
+single_problem_dir="${problem_group_dir}/${2}"
+mkdir -p "${single_problem_dir}"
+cd "${single_problem_dir}"
+cp "${top_dir_abs}/base.cpp" .
+touch \
+    input.txt \
+    output.txt \
+    desired.txt
